@@ -344,7 +344,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background-
 
 <script>
 // ====== CONFIG — REPLACE THESE ======
-const SUPABASE_URL = 'tafyjhogqkqvloadrzum';
+const SUPABASE_URL = 'https://tafyjhogqkqvloadrzum.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhZnlqaG9ncWtxdmxvYWRyenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTk3MjAsImV4cCI6MjA5MzI5NTcyMH0.bM7WCI5Iuf1grIrj2ykwONO-H-yJiX0-GAKbnEWo4qQ';
 // =====================================
 
@@ -537,7 +537,7 @@ async function loadRevenue() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
   const { data: all } = await db.from('revenue_events').select('amount,pipeline,created_at');
-  if (!data && !all) return;
+  if (!all) return;
   const rows = all || [];
 
   const sum = rows => rows.reduce((a, r) => a + parseFloat(r.amount || 0), 0);
