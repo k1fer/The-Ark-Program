@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { AGENT_CONFIG, type Agent, type AgentMessage } from "@/lib/supabase";
+import { AGENT_CONFIG, type Agent } from "@/lib/supabase";
+import { getVoiceService, getSpeechRecognition, AGENT_VOICE_PROFILES } from "@/lib/voice-service";
 import { AgentAvatar } from "./agent-avatar";
 import { 
   X, 
@@ -13,7 +14,9 @@ import {
   VolumeX,
   Loader2,
   Minimize2,
-  Maximize2 
+  Maximize2,
+  Radio,
+  Waveform
 } from "lucide-react";
 
 interface ChatMessage {
@@ -34,6 +37,7 @@ interface AgentChatProps {
 export function AgentChat({ agent, onClose, onSendMessage, className }: AgentChatProps) {
   const config = AGENT_CONFIG[agent.id];
   const color = config?.color || "#ff2d4a";
+  const voiceProfile = AGENT_VOICE_PROFILES[agent.id];
   
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -44,6 +48,7 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
     },
   ]);
   const [input, setInput] = useState("");
+  const [interimTranscript, setInterimTranscript] = useState("");
   const [sending, setSending] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -51,95 +56,39 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
   const [isMinimized, setIsMinimized] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const synthRef = useRef<SpeechSynthesis | null>(null);
-
-  // Initialize speech recognition
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = false;
-        recognitionRef.current.lang = "en-US";
-
-        recognitionRef.current.onresult = (event) => {
-          const transcript = event.results[0][0].transcript;
-          setInput(transcript);
-          setIsListening(false);
-          // Auto-send voice messages
-          handleSendMessage(transcript, true);
-        };
-
-        recognitionRef.current.onerror = () => {
-          setIsListening(false);
-        };
-
-        recognitionRef.current.onend = () => {
-          setIsListening(false);
-        };
-      }
-
-      synthRef.current = window.speechSynthesis;
-    }
-
-    return () => {
-      recognitionRef.current?.abort();
-      synthRef.current?.cancel();
-    };
-  }, []);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Speak welcome message on mount
+  useEffect(() => {
+    if (voiceEnabled && typeof window !== "undefined") {
+      const timer = setTimeout(() => {
+        const voiceService = getVoiceService();
+        voiceService.speak(
+          `${config?.name} online. Standing by for your orders, Master Control.`,
+          agent.id,
+          () => setIsSpeaking(true),
+          () => setIsSpeaking(false)
+        );
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [agent.id, config?.name, voiceEnabled]);
+
   const speakMessage = useCallback((text: string) => {
-    if (!synthRef.current || !voiceEnabled) return;
+    if (!voiceEnabled) return;
     
-    synthRef.current.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Get a robotic/synthetic voice if available
-    const voices = synthRef.current.getVoices();
-    const preferredVoice = voices.find(v => 
-      v.name.includes("Google") || v.name.includes("Neural")
-    ) || voices[0];
-    
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-    }
-    
-    // Customize voice based on agent
-    switch (agent.id) {
-      case "ares":
-        utterance.pitch = 0.8;
-        utterance.rate = 1.1;
-        break;
-      case "athena":
-        utterance.pitch = 1.2;
-        utterance.rate = 1.0;
-        break;
-      case "apollo":
-        utterance.pitch = 1.0;
-        utterance.rate = 0.95;
-        break;
-      case "argus":
-        utterance.pitch = 0.9;
-        utterance.rate = 1.2;
-        break;
-      case "aegis":
-        utterance.pitch = 0.7;
-        utterance.rate = 0.9;
-        break;
-    }
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    synthRef.current.speak(utterance);
+    const voiceService = getVoiceService();
+    voiceService.speak(
+      text,
+      agent.id,
+      () => setIsSpeaking(true),
+      () => setIsSpeaking(false)
+    );
   }, [agent.id, voiceEnabled]);
 
   const handleSendMessage = useCallback(async (content: string, isVoice = false) => {
@@ -156,6 +105,7 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
 
     setMessages(prev => [...prev, userMessage]);
     setInput("");
+    setInterimTranscript("");
     setSending(true);
 
     try {
@@ -174,7 +124,7 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
       if (voiceEnabled) {
         speakMessage(response);
       }
-    } catch (error) {
+    } catch {
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         role: "agent",
@@ -188,20 +138,48 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
   }, [sending, agent.id, onSendMessage, voiceEnabled, speakMessage]);
 
   const toggleListening = useCallback(() => {
-    if (!recognitionRef.current) return;
+    const recognition = getSpeechRecognition();
+    
+    if (!recognition.isSupported()) {
+      alert("Speech recognition is not supported in your browser.");
+      return;
+    }
 
     if (isListening) {
-      recognitionRef.current.stop();
+      recognition.stop();
       setIsListening(false);
+      setInterimTranscript("");
     } else {
-      recognitionRef.current.start();
-      setIsListening(true);
+      const started = recognition.start(
+        (transcript, isFinal) => {
+          if (isFinal) {
+            setInput(transcript);
+            setInterimTranscript("");
+            setIsListening(false);
+            // Auto-send voice messages
+            handleSendMessage(transcript, true);
+          } else {
+            setInterimTranscript(transcript);
+          }
+        },
+        () => {
+          setIsListening(false);
+          setInterimTranscript("");
+        },
+        () => {
+          setIsListening(false);
+          setInterimTranscript("");
+        }
+      );
+      if (started) {
+        setIsListening(true);
+      }
     }
-  }, [isListening]);
+  }, [isListening, handleSendMessage]);
 
   const toggleVoice = useCallback(() => {
     if (isSpeaking) {
-      synthRef.current?.cancel();
+      getVoiceService().stop();
       setIsSpeaking(false);
     }
     setVoiceEnabled(prev => !prev);
@@ -218,6 +196,10 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
         )}
         style={{ borderColor: color }}
         onClick={() => setIsMinimized(false)}
+        role="button"
+        tabIndex={0}
+        aria-label={`Expand chat with ${config?.name}`}
+        onKeyDown={(e) => e.key === "Enter" && setIsMinimized(false)}
       >
         <div className="flex items-center gap-3 p-3">
           <AgentAvatar agentId={agent.id} status={agent.status} size="sm" />
@@ -242,19 +224,37 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
         borderColor: color,
         boxShadow: `0 0 40px ${color}22`
       }}
+      role="dialog"
+      aria-label={`Chat with ${config?.name}`}
     >
       {/* Header */}
       <div 
         className="flex items-center gap-3 p-3 border-b"
         style={{ borderColor: `${color}33`, background: `${color}11` }}
       >
-        <AgentAvatar agentId={agent.id} status={agent.status} size="sm" />
+        <div className="relative">
+          <AgentAvatar agentId={agent.id} status={agent.status} size="sm" />
+          {isSpeaking && (
+            <div 
+              className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center animate-pulse"
+              style={{ background: color }}
+            >
+              <Radio className="w-2.5 h-2.5 text-background" />
+            </div>
+          )}
+        </div>
         <div className="flex-1">
-          <h3 className="font-display text-sm tracking-wider" style={{ color }}>
+          <h3 className="font-display text-sm tracking-wider flex items-center gap-2" style={{ color }}>
             {config?.name}
+            {isSpeaking && (
+              <span className="flex items-center gap-1 text-[10px] text-foreground-dim font-mono">
+                <Waveform className="w-3 h-3 animate-pulse" />
+                TRANSMITTING
+              </span>
+            )}
           </h3>
           <p className="text-[10px] text-foreground-dim">
-            {config?.role} {isSpeaking && "- Speaking..."}
+            {config?.role} | Voice: {voiceProfile ? `P${voiceProfile.pitch} R${voiceProfile.rate}` : "Default"}
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -265,13 +265,14 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
               voiceEnabled ? "text-foreground-muted hover:text-foreground" : "text-foreground-dim"
             )}
             aria-label={voiceEnabled ? "Disable voice" : "Enable voice"}
+            aria-pressed={voiceEnabled}
           >
             {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </button>
           <button
             onClick={() => setIsMinimized(true)}
             className="p-1.5 rounded text-foreground-muted hover:text-foreground transition-colors"
-            aria-label="Minimize"
+            aria-label="Minimize chat"
           >
             <Minimize2 className="w-4 h-4" />
           </button>
@@ -286,7 +287,12 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[200px]">
+      <div 
+        className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[200px]"
+        role="log"
+        aria-live="polite"
+        aria-label="Chat messages"
+      >
         {messages.map((message) => (
           <div
             key={message.id}
@@ -305,25 +311,45 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
             >
               {message.isVoice && (
                 <span className="text-[10px] text-foreground-dim flex items-center gap-1 mb-1">
-                  <Mic className="w-3 h-3" /> Voice
+                  <Mic className="w-3 h-3" /> Voice Command
                 </span>
               )}
               <p className="text-foreground leading-relaxed">{message.content}</p>
               <span className="text-[10px] text-foreground-dim mt-1 block">
-                {message.timestamp.toLocaleTimeString("en-SG", { hour12: false })}
+                {message.timestamp.toLocaleTimeString("en-US", { hour12: false })}
               </span>
             </div>
           </div>
         ))}
         {sending && (
           <div className="flex justify-start">
-            <div className="bg-background-tertiary border border-border p-3 rounded-lg">
+            <div className="bg-background-tertiary border border-border p-3 rounded-lg flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" style={{ color }} />
+              <span className="text-xs text-foreground-dim">Processing...</span>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Voice Status Bar */}
+      {isListening && (
+        <div 
+          className="px-3 py-2 border-t flex items-center gap-2"
+          style={{ borderColor: `${color}33`, background: `${color}11` }}
+        >
+          <div className="w-2 h-2 rounded-full bg-danger animate-pulse" />
+          <span className="text-xs text-foreground-muted flex-1">
+            {interimTranscript || "Listening for voice command..."}
+          </span>
+          <button
+            onClick={toggleListening}
+            className="text-xs text-danger hover:underline"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {/* Input */}
       <div className="p-3 border-t border-border">
@@ -332,16 +358,23 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
             onClick={toggleListening}
             disabled={sending}
             className={cn(
-              "p-3 rounded-lg transition-all",
+              "p-3 rounded-lg transition-all flex-shrink-0",
               isListening
-                ? "bg-danger text-white animate-pulse"
-                : "bg-background-tertiary text-foreground-muted hover:text-foreground"
+                ? "bg-danger text-white"
+                : "bg-background-tertiary text-foreground-muted hover:text-foreground hover:bg-background-tertiary/80"
             )}
+            style={isListening ? {} : { borderColor: `${color}33` }}
             aria-label={isListening ? "Stop listening" : "Start voice input"}
+            aria-pressed={isListening}
           >
-            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            {isListening ? (
+              <MicOff className="w-5 h-5 animate-pulse" />
+            ) : (
+              <Mic className="w-5 h-5" />
+            )}
           </button>
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -351,15 +384,20 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
                 handleSendMessage(input);
               }
             }}
-            placeholder={isListening ? "Listening..." : "Message..."}
+            placeholder={isListening ? "Listening..." : "Enter command..."}
             disabled={sending || isListening}
-            className="flex-1 bg-background-tertiary border border-border rounded-lg px-4 py-2 text-sm"
+            className="flex-1 bg-background-tertiary border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 transition-all"
+            style={{ 
+              // @ts-expect-error CSS custom property
+              "--tw-ring-color": color 
+            }}
+            aria-label="Message input"
           />
           <button
             onClick={() => handleSendMessage(input)}
             disabled={sending || !input.trim()}
             className={cn(
-              "p-3 rounded-lg transition-all",
+              "p-3 rounded-lg transition-all flex-shrink-0",
               "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
             style={{ 
@@ -374,12 +412,4 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
       </div>
     </div>
   );
-}
-
-// Type declarations for Web Speech API
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
 }
