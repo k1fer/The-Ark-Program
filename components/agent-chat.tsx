@@ -16,7 +16,7 @@ import {
   Minimize2,
   Maximize2,
   Radio,
-  Waveform
+  Activity
 } from "lucide-react";
 
 interface ChatMessage {
@@ -248,7 +248,7 @@ export function AgentChat({ agent, onClose, onSendMessage, className }: AgentCha
             {config?.name}
             {isSpeaking && (
               <span className="flex items-center gap-1 text-[10px] text-foreground-dim font-mono">
-                <Waveform className="w-3 h-3 animate-pulse" />
+                <Activity className="w-3 h-3 animate-pulse" />
                 TRANSMITTING
               </span>
             )}
