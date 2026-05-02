@@ -1,49 +1,49 @@
 @import "tailwindcss";
 
 @theme {
-  /* TRON:Ares Red Cyberpunk Theme */
-  --color-background: #050508;
-  --color-background-secondary: #0a0a10;
-  --color-background-tertiary: #0f0f18;
-  --color-background-card: #0d0d14;
+  /* ARK/OS Dark Red Theme */
+  --color-background: #0a0608;
+  --color-background-secondary: #0e0a0c;
+  --color-background-tertiary: #120e10;
+  --color-background-card: #0d090b;
   
-  --color-foreground: #e8e8ec;
-  --color-foreground-muted: #6b7280;
-  --color-foreground-dim: #3a3f4a;
+  --color-foreground: #e8e4e6;
+  --color-foreground-muted: #8b7f84;
+  --color-foreground-dim: #4a4044;
   
-  /* Primary - Ares Red */
-  --color-primary: #ff2d4a;
-  --color-primary-dim: #4d0010;
-  --color-primary-glow: rgba(255, 45, 74, 0.4);
+  /* Primary - Deep Red */
+  --color-primary: #dc2626;
+  --color-primary-dim: #450a0a;
+  --color-primary-glow: rgba(220, 38, 38, 0.3);
   
-  /* Accent Colors for Agents */
-  --color-ares: #ff2d4a;
-  --color-athena: #00c8ff;
-  --color-apollo: #c084fc;
-  --color-argus: #00ff88;
-  --color-aegis: #ffb800;
+  /* Agent Colors */
+  --color-ares: #ffffff;
+  --color-athena: #ff3366;
+  --color-apollo: #ffaa00;
+  --color-argus: #ffffff;
+  --color-aegis: #ff4444;
   
   /* Status Colors */
-  --color-success: #00ff88;
-  --color-warning: #ffb800;
-  --color-danger: #ff2d4a;
-  --color-info: #00c8ff;
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-danger: #dc2626;
+  --color-info: #3b82f6;
+  --color-active: #22c55e;
   
   /* Border */
-  --color-border: #1f1f2a;
-  --color-border-active: #ff2d4a;
+  --color-border: #2a1f22;
+  --color-border-active: #dc2626;
   
   /* Radius */
-  --radius: 0.25rem;
-  --radius-lg: 0.5rem;
+  --radius: 0.125rem;
+  --radius-lg: 0.25rem;
   
   /* Fonts */
-  --font-sans: "Rajdhani", "Orbitron", system-ui, sans-serif;
+  --font-sans: "Rajdhani", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
   --font-display: "Orbitron", "Rajdhani", sans-serif;
 }
 
-/* Base Styles */
 * {
   margin: 0;
   padding: 0;
@@ -52,7 +52,6 @@
 
 html {
   background-color: var(--color-background);
-  scroll-behavior: smooth;
 }
 
 body {
@@ -60,10 +59,10 @@ body {
   font-family: var(--font-mono);
   background-color: var(--color-background);
   color: var(--color-foreground);
-  overflow-x: hidden;
+  font-size: 13px;
 }
 
-/* Grid Background Effect */
+/* Subtle grid background */
 body::before {
   content: '';
   position: fixed;
@@ -72,36 +71,17 @@ body::before {
   right: 0;
   bottom: 0;
   background-image: 
-    linear-gradient(rgba(255, 45, 74, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 45, 74, 0.03) 1px, transparent 1px);
-  background-size: 50px 50px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Scanline Effect */
-body::after {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.03) 2px,
-    rgba(0, 0, 0, 0.03) 4px
-  );
+    linear-gradient(rgba(220, 38, 38, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(220, 38, 38, 0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
   pointer-events: none;
   z-index: 0;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -110,127 +90,75 @@ body::after {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-primary-dim);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-primary);
 }
 
-/* Input Reset */
+/* Input styles */
 input, textarea, select {
   background: var(--color-background-tertiary);
   border: 1px solid var(--color-border);
   color: var(--color-foreground);
   font-family: var(--font-mono);
   outline: none;
-  transition: border-color 0.2s ease;
+  font-size: 13px;
 }
 
 input:focus, textarea:focus, select:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
 input::placeholder, textarea::placeholder {
   color: var(--color-foreground-dim);
 }
 
-/* Button Base */
 button {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 /* Animations */
-@keyframes pulse-glow {
-  0%, 100% {
-    opacity: 1;
-    box-shadow: 0 0 5px var(--color-primary-glow);
-  }
-  50% {
-    opacity: 0.7;
-    box-shadow: 0 0 20px var(--color-primary-glow);
-  }
-}
-
-@keyframes scan-line {
-  0% {
-    transform: translateY(-100%);
-  }
-  100% {
-    transform: translateY(100%);
-  }
-}
-
-@keyframes flicker {
+@keyframes pulse-dot {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+  50% { opacity: 0.4; }
 }
 
-@keyframes glow-pulse {
-  0%, 100% {
-    filter: drop-shadow(0 0 2px currentColor);
-  }
-  50% {
-    filter: drop-shadow(0 0 8px currentColor);
-  }
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0; }
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
-.animate-flicker {
-  animation: flicker 0.1s ease-in-out infinite;
+.animate-blink {
+  animation: blink 1s step-end infinite;
 }
 
-.animate-glow-pulse {
-  animation: glow-pulse 2s ease-in-out infinite;
+/* Status dot glow */
+.status-active {
+  box-shadow: 0 0 6px var(--color-active);
 }
 
-/* Glow Effects */
-.glow-red {
-  box-shadow: 0 0 10px rgba(255, 45, 74, 0.3), 0 0 20px rgba(255, 45, 74, 0.1);
+/* Section header style */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-primary);
 }
 
-.glow-blue {
-  box-shadow: 0 0 10px rgba(0, 200, 255, 0.3), 0 0 20px rgba(0, 200, 255, 0.1);
-}
-
-.glow-green {
-  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3), 0 0 20px rgba(0, 255, 136, 0.1);
-}
-
-.glow-amber {
-  box-shadow: 0 0 10px rgba(255, 184, 0, 0.3), 0 0 20px rgba(255, 184, 0, 0.1);
-}
-
-.glow-purple {
-  box-shadow: 0 0 10px rgba(192, 132, 252, 0.3), 0 0 20px rgba(192, 132, 252, 0.1);
-}
-
-/* Text Glow */
-.text-glow-red {
-  text-shadow: 0 0 10px rgba(255, 45, 74, 0.5);
-}
-
-.text-glow-blue {
-  text-shadow: 0 0 10px rgba(0, 200, 255, 0.5);
-}
-
-/* Gradient Border */
-.gradient-border {
-  position: relative;
-}
-
-.gradient-border::before {
+.section-header::before {
   content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  width: 3px;
+  height: 14px;
+  background: var(--color-primary);
 }

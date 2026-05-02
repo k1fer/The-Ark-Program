@@ -24,35 +24,53 @@ export function DashboardPage({
     .filter((a): a is Agent => a !== undefined);
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Agent Grid */}
+    <div className="p-4 lg:p-6 space-y-6">
+      {/* Agent Cards - Horizontal row on desktop */}
       <section>
-        <h2 className="font-display text-xs tracking-[0.3em] text-foreground-dim mb-4 pb-2 border-b border-border">
-          AGENT STATUS
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="flex flex-nowrap gap-4 overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:overflow-visible">
           {sortedAgents.map((agent) => (
-            <AgentCard
-              key={agent.id}
-              agent={agent}
-              onOpenChat={onOpenChat}
-            />
+            <div key={agent.id} className="flex-shrink-0 w-[200px] lg:flex-1 lg:w-auto lg:min-w-[180px]">
+              <AgentCard
+                agent={agent}
+                onOpenChat={onOpenChat}
+              />
+            </div>
           ))}
         </div>
       </section>
 
-      {/* Thought Feed */}
-      <section>
-        <h2 className="font-display text-xs tracking-[0.3em] text-foreground-dim mb-4 pb-2 border-b border-border">
-          LIVE THOUGHT FEED
-        </h2>
-        <ThoughtFeed thoughts={thoughts} />
-      </section>
+      {/* Two column layout: Action Stream + Command Override */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Action Stream */}
+        <section className="lg:col-span-2">
+          <h2 className="section-header mb-4">ACTION STREAM</h2>
+          <ThoughtFeed thoughts={thoughts} />
+        </section>
 
-      {/* Directive Input */}
-      <section>
-        <DirectiveInput onSend={onSendDirective} />
-      </section>
+        {/* Right: Command Override */}
+        <section className="lg:col-span-1">
+          <h2 className="section-header mb-4">COMMAND OVERRIDE</h2>
+          <div className="space-y-4">
+            <DirectiveInput onSend={onSendDirective} />
+            
+            {/* Help text */}
+            <div className="text-[11px] text-foreground-dim space-y-1 leading-relaxed">
+              <p className="flex items-start gap-2">
+                <span className="text-foreground-muted">&gt;</span>
+                Directives execute securely via ARES.
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="text-foreground-muted">&gt;</span>
+                Ensure instructions are unambiguous.
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="text-foreground-muted">&gt;</span>
+                Click on any Agent Card above to open direct secure comms.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

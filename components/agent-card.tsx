@@ -2,9 +2,35 @@
 
 import { cn } from "@/lib/utils";
 import { AGENT_CONFIG, type Agent } from "@/lib/supabase";
-import { AgentAvatar } from "./agent-avatar";
 import { timeAgo } from "@/lib/utils";
-import { MessageSquare, Mic } from "lucide-react";
+import Image from "next/image";
+
+// Avatar image paths for agents
+const AGENT_AVATARS: Record<string, string | null> = {
+  ares: "/avatars/ares.png",
+  athena: "/avatars/athena.png",
+  apollo: null,
+  argus: null,
+  aegis: null,
+};
+
+// Agent accent colors matching reference
+const AGENT_COLORS: Record<string, string> = {
+  ares: "#ffffff",
+  athena: "#ff3366",
+  apollo: "#ffaa00",
+  argus: "#ffffff",
+  aegis: "#ff4444",
+};
+
+// Agent role subtitles
+const AGENT_ROLES: Record<string, string> = {
+  ares: "COMMANDER",
+  athena: "INTELLIGENCE",
+  apollo: "CREATION",
+  argus: "ANALYTICS",
+  aegis: "SECURITY",
+};
 
 interface AgentCardProps {
   agent: Agent;
@@ -13,169 +39,131 @@ interface AgentCardProps {
 }
 
 export function AgentCard({ agent, onOpenChat, className }: AgentCardProps) {
+  const color = AGENT_COLORS[agent.id] || "#ff4444";
+  const role = AGENT_ROLES[agent.id] || agent.role;
+  const avatarSrc = AGENT_AVATARS[agent.id];
+  const isActive = agent.status === "active";
   const config = AGENT_CONFIG[agent.id];
-  const color = config?.color || "#ff2d4a";
-  const statusLabel = agent.status.replace("_", " ").toUpperCase();
 
   return (
     <div
       className={cn(
-        "relative bg-background-card border border-border rounded overflow-hidden transition-all duration-300 group cursor-pointer",
-        "hover:border-opacity-80",
+        "relative bg-background-card border border-border rounded-sm overflow-hidden group",
+        "hover:border-border-active/30 transition-colors",
         className
       )}
       style={{
-        borderColor: agent.status === "active" ? color : undefined,
-        boxShadow: agent.status === "active" ? `0 0 20px ${color}22` : undefined,
+        borderColor: isActive ? `${color}33` : undefined,
       }}
     >
-      {/* Top accent line */}
-      <div
-        className="absolute top-0 left-0 right-0 h-0.5"
-        style={{ background: color }}
+      {/* Top border accent */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-[2px]"
+        style={{ background: `linear-gradient(90deg, transparent, ${color}66, transparent)` }}
       />
 
-      {/* Scan line effect when active */}
-      {agent.status === "active" && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div
-            className="absolute left-0 right-0 h-8 opacity-10"
+      <div className="p-4">
+        {/* Header row: Avatar + Name */}
+        <div className="flex items-start gap-3">
+          {/* Avatar */}
+          <div 
+            className="w-14 h-14 rounded-sm overflow-hidden flex-shrink-0 relative"
             style={{
-              background: `linear-gradient(to bottom, transparent, ${color}, transparent)`,
-              animation: "scan-line 3s linear infinite",
+              background: avatarSrc ? '#0d090b' : `linear-gradient(135deg, ${color}22, ${color}11)`,
+              border: `1px solid ${color}44`,
             }}
-          />
-        </div>
-      )}
+          >
+            {avatarSrc ? (
+              <Image
+                src={avatarSrc}
+                alt={`${agent.id} avatar`}
+                fill
+                className="object-cover"
+                sizes="56px"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div 
+                  className="w-6 h-6 rounded-full opacity-30"
+                  style={{ background: color }}
+                />
+              </div>
+            )}
+            {/* Glow effect for active */}
+            {isActive && (
+              <div 
+                className="absolute inset-0 animate-pulse-dot"
+                style={{ boxShadow: `inset 0 0 20px ${color}22` }}
+              />
+            )}
+          </div>
 
-      <div className="p-4 md:p-5 relative z-10">
-        {/* Header with avatar and status */}
-        <div className="flex items-start gap-4">
-          <AgentAvatar
-            agentId={agent.id}
-            status={agent.status}
-            size="md"
-            showGlow={true}
-          />
+          {/* Name and role */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <h3
-                className="font-display text-sm md:text-base tracking-widest truncate"
+            <div className="flex items-center gap-2">
+              <h3 
+                className="font-display text-base tracking-widest"
                 style={{ color }}
               >
-                {config?.name || agent.name}
+                {config?.name || agent.name.toUpperCase()}
               </h3>
-              <StatusBadge status={agent.status} color={color} />
+              {/* Small icon for specific agents */}
+              {agent.id === "argus" && (
+                <svg className="w-4 h-4 text-foreground-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                  <polyline points="17 6 23 6 23 12" />
+                </svg>
+              )}
+              {agent.id === "aegis" && (
+                <svg className="w-4 h-4 text-foreground-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              )}
             </div>
-            <p className="text-foreground-dim text-xs tracking-wider mt-1">
-              {config?.role || agent.role}
+            <p 
+              className="text-[10px] tracking-[0.2em] mt-0.5"
+              style={{ color: `${color}88` }}
+            >
+              {role}
             </p>
           </div>
         </div>
 
+        {/* Status row */}
+        <div className="flex items-center justify-between mt-3 text-[10px] tracking-wider">
+          <span className="text-foreground-dim">STATUS</span>
+          <span className={cn(
+            "flex items-center gap-1.5",
+            isActive ? "text-active" : "text-foreground-dim"
+          )}>
+            {isActive && (
+              <span className="w-1.5 h-1.5 rounded-full bg-active status-active animate-pulse-dot" />
+            )}
+            {isActive ? "ACTIVE" : "IDLE"}
+          </span>
+        </div>
+
         {/* Current task */}
-        <div className="mt-4 min-h-[40px]">
-          <p className="text-foreground-muted text-xs leading-relaxed line-clamp-2">
-            {agent.current_task || "Standing by for orders..."}
+        <div className="mt-3">
+          <p className="text-[10px] tracking-wider text-foreground-dim mb-1">CURRENT TASK</p>
+          <p className="text-xs text-foreground-muted leading-relaxed line-clamp-2 min-h-[32px]">
+            {agent.current_task || "Standing by..."}
           </p>
         </div>
 
-        {/* Footer with timestamp and actions */}
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-foreground-dim text-[10px] tracking-wider">
-            {agent.last_active ? timeAgo(agent.last_active) : "Never active"}
+        {/* Footer row */}
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
+          <button
+            onClick={() => onOpenChat?.(agent.id)}
+            className="text-[10px] tracking-wider text-foreground-muted hover:text-foreground transition-colors"
+          >
+            _ INTERACT
+          </button>
+          <span className="text-[10px] tracking-wider text-foreground-dim">
+            UPLINK: {agent.last_active ? timeAgo(agent.last_active) : "Never"}
           </span>
-          
-          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenChat?.(agent.id);
-              }}
-              className="p-1.5 rounded bg-background-tertiary hover:bg-primary/20 transition-colors"
-              style={{ color }}
-              aria-label={`Chat with ${config?.name}`}
-            >
-              <MessageSquare className="w-4 h-4" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                // Voice interaction will be handled in chat
-                onOpenChat?.(agent.id);
-              }}
-              className="p-1.5 rounded bg-background-tertiary hover:bg-primary/20 transition-colors"
-              style={{ color }}
-              aria-label={`Voice chat with ${config?.name}`}
-            >
-              <Mic className="w-4 h-4" />
-            </button>
-          </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function StatusBadge({ status, color }: { status: string; color: string }) {
-  const label = status.replace("_", " ").toUpperCase();
-  
-  const getStyles = () => {
-    switch (status) {
-      case "active":
-        return {
-          bg: `${color}22`,
-          border: color,
-          text: color,
-          animate: true,
-        };
-      case "idle":
-        return {
-          bg: "rgba(107, 114, 128, 0.1)",
-          border: "rgba(107, 114, 128, 0.5)",
-          text: "rgb(107, 114, 128)",
-          animate: false,
-        };
-      case "pending_approval":
-        return {
-          bg: "rgba(255, 184, 0, 0.1)",
-          border: "rgba(255, 184, 0, 0.7)",
-          text: "#ffb800",
-          animate: true,
-        };
-      case "paused":
-      case "error":
-        return {
-          bg: "rgba(255, 45, 74, 0.1)",
-          border: "rgba(255, 45, 74, 0.7)",
-          text: "#ff2d4a",
-          animate: status === "error",
-        };
-      default:
-        return {
-          bg: "rgba(107, 114, 128, 0.1)",
-          border: "rgba(107, 114, 128, 0.5)",
-          text: "rgb(107, 114, 128)",
-          animate: false,
-        };
-    }
-  };
-
-  const styles = getStyles();
-
-  return (
-    <span
-      className={cn(
-        "px-2 py-0.5 text-[9px] font-display tracking-wider rounded whitespace-nowrap",
-        styles.animate && "animate-pulse-glow"
-      )}
-      style={{
-        background: styles.bg,
-        border: `1px solid ${styles.border}`,
-        color: styles.text,
-      }}
-    >
-      {label}
-    </span>
   );
 }
