@@ -1,0 +1,164 @@
+# ============================================================
+# INSTRUCTIONS: Create each file below as a separate .yml file
+# inside .github/workflows/ in your repo
+# ============================================================
+
+
+# ---- FILE 1: .github/workflows/athena-morning.yml ----
+name: Athena Morning Scan
+on:
+  schedule:
+    - cron: '0 22 * * *'   # 06:00 SGT daily
+  workflow_dispatch:
+jobs:
+  run-athena:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python agents/athena.py --mode morning
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+
+# ---- FILE 2: .github/workflows/athena-evening.yml ----
+name: Athena Evening Scan
+on:
+  schedule:
+    - cron: '0 10 * * *'   # 18:00 SGT daily
+  workflow_dispatch:
+jobs:
+  run-athena:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python agents/athena.py --mode evening
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+
+# ---- FILE 3: .github/workflows/apollo-daily.yml ----
+name: Apollo Daily Creation
+on:
+  schedule:
+    - cron: '30 0 * * *'   # 08:30 SGT daily
+  workflow_dispatch:
+jobs:
+  run-apollo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python agents/apollo.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+
+# ---- FILE 4: .github/workflows/ares-daily.yml ----
+name: Ares Daily Distribution
+on:
+  schedule:
+    - cron: '0 2 * * *'    # 10:00 SGT daily
+  workflow_dispatch:
+jobs:
+  run-ares:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python agents/ares.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GUMROAD_ACCESS_TOKEN: ${{ secrets.GUMROAD_ACCESS_TOKEN }}
+          WORDPRESS_URL: ${{ secrets.WORDPRESS_URL }}
+          WORDPRESS_USERNAME: ${{ secrets.WORDPRESS_USERNAME }}
+          WORDPRESS_APP_PASSWORD: ${{ secrets.WORDPRESS_APP_PASSWORD }}
+          BEEHIIV_API_KEY: ${{ secrets.BEEHIIV_API_KEY }}
+          BEEHIIV_PUBLICATION_ID: ${{ secrets.BEEHIIV_PUBLICATION_ID }}
+
+
+# ---- FILE 5: .github/workflows/argus-eod.yml ----
+name: Argus EOD Report
+on:
+  schedule:
+    - cron: '0 15 * * *'   # 23:00 SGT daily
+  workflow_dispatch:
+jobs:
+  run-argus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python agents/argus.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GUMROAD_ACCESS_TOKEN: ${{ secrets.GUMROAD_ACCESS_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OPERATOR_EMAIL: ${{ secrets.OPERATOR_EMAIL }}
+
+
+# ---- FILE 6: .github/workflows/aegis-monitor.yml ----
+name: Aegis Security Monitor
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes
+  workflow_dispatch:
+jobs:
+  run-aegis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python agents/aegis.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OPERATOR_EMAIL: ${{ secrets.OPERATOR_EMAIL }}
+
+
+# ---- FILE 7: .github/workflows/keepalive.yml ----
+name: Keep-Alive Ping
+on:
+  schedule:
+    - cron: '*/14 * * * *'  # Every 14 minutes
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -s "$SUPABASE_URL/rest/v1/" \
+            -H "apikey: $SUPABASE_SERVICE_KEY" > /dev/null && echo "Ping OK"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}

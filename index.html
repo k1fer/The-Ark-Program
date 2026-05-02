@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARK — Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--bg2:#0f0f1a;--bg3:#13131f;
+  --blue:#00d4ff;--blue-dim:#003d4d;
+  --amber:#ffb800;--red:#ff3b5c;--green:#00ff88;
+  --text:#c8d6e5;--dim:#2a3545;
+  --ares:#ff6b35;--athena:#00d4ff;--apollo:#a78bfa;
+  --argus:#00ff88;--aegis:#ffb800;
+}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh;overflow-x:hidden}
+h1,h2,h3,.agent-name,.tab,.logo{font-family:'Orbitron',sans-serif}
+
+/* LOGIN */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:24px}
+.login-box{background:var(--bg2);border:1px solid var(--blue-dim);padding:48px;width:360px;text-align:center}
+.login-box h1{color:var(--blue);font-size:28px;margin-bottom:8px;letter-spacing:4px}
+.login-box p{color:var(--dim);font-size:11px;margin-bottom:32px;letter-spacing:2px}
+.login-box input{width:100%;background:var(--bg3);border:1px solid var(--dim);color:var(--text);padding:12px;margin-bottom:12px;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none}
+.login-box input:focus{border-color:var(--blue)}
+.login-box button{width:100%;background:var(--blue);color:#000;border:none;padding:12px;font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:2px;cursor:pointer;margin-top:8px}
+.login-box button:hover{background:#00b8d9}
+#login-error{color:var(--red);font-size:11px;margin-top:8px}
+
+/* MAIN APP */
+#app{display:none}
+
+/* TOP BAR */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--dim);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+.logo{color:var(--blue);font-size:18px;letter-spacing:6px}
+.logo span{color:var(--dim);font-size:10px;letter-spacing:2px;display:block;margin-top:2px}
+.revenue-ticker{display:flex;gap:24px;font-size:11px}
+.rev-item{text-align:center}
+.rev-label{color:var(--dim);font-size:9px;letter-spacing:1px}
+.rev-amount{color:var(--green);font-size:14px;font-family:'Orbitron',sans-serif}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.approval-badge{background:var(--red);color:#fff;font-size:10px;padding:2px 8px;border-radius:2px;cursor:pointer;font-family:'Orbitron',sans-serif;letter-spacing:1px;display:none}
+.approval-badge.visible{display:block}
+#logout-btn{background:none;border:1px solid var(--dim);color:var(--dim);padding:6px 12px;font-size:10px;cursor:pointer;font-family:'JetBrains Mono',monospace}
+#logout-btn:hover{border-color:var(--red);color:var(--red)}
+
+/* TABS */
+.tabs{background:var(--bg2);border-bottom:1px solid var(--dim);padding:0 24px;display:flex;gap:0}
+.tab{padding:14px 20px;font-size:10px;letter-spacing:2px;cursor:pointer;color:var(--dim);border-bottom:2px solid transparent;transition:all .2s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* PAGES */
+.page{display:none;padding:24px}
+.page.active{display:block}
+
+/* AGENT GRID */
+.agent-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px}
+@media(max-width:900px){.agent-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:500px){.agent-grid{grid-template-columns:1fr}}
+
+.agent-card{background:var(--bg2);border:1px solid var(--dim);padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .2s}
+.agent-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:.6}
+.agent-card.ares::before{background:var(--ares)}
+.agent-card.athena::before{background:var(--athena)}
+.agent-card.apollo::before{background:var(--apollo)}
+.agent-card.argus::before{background:var(--argus)}
+.agent-card.aegis::before{background:var(--aegis)}
+.agent-card:hover{border-color:var(--blue-dim)}
+
+.agent-avatar{width:40px;height:40px;margin-bottom:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.agent-name{font-size:13px;letter-spacing:3px;margin-bottom:4px}
+.agent-card.ares .agent-name{color:var(--ares)}
+.agent-card.athena .agent-name{color:var(--athena)}
+.agent-card.apollo .agent-name{color:var(--apollo)}
+.agent-card.argus .agent-name{color:var(--argus)}
+.agent-card.aegis .agent-name{color:var(--aegis)}
+.agent-role{font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:12px}
+.agent-status{display:inline-block;font-size:9px;padding:3px 8px;letter-spacing:1px;font-family:'Orbitron',sans-serif}
+.status-idle{background:#1a1a2e;color:var(--dim);border:1px solid var(--dim)}
+.status-active{background:#001a26;color:var(--blue);border:1px solid var(--blue);animation:pulse 2s infinite}
+.status-pending_approval{background:#2a1f00;color:var(--amber);border:1px solid var(--amber)}
+.status-paused{background:#2a0010;color:var(--red);border:1px solid var(--red)}
+.status-error{background:#2a0010;color:var(--red);border:1px solid var(--red);animation:flash 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes flash{0%,100%{opacity:1}50%{opacity:.2}}
+.agent-task{font-size:10px;color:var(--dim);margin-top:10px;min-height:30px;line-height:1.4}
+.agent-last{font-size:9px;color:#2a3545;margin-top:8px}
+
+/* THOUGHT FEED */
+.section-title{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;color:var(--dim);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--dim)}
+.thought-feed{background:var(--bg2);border:1px solid var(--dim);height:320px;overflow-y:auto;padding:16px;font-size:11px;line-height:1.8}
+.thought-feed::-webkit-scrollbar{width:4px}
+.thought-feed::-webkit-scrollbar-track{background:var(--bg)}
+.thought-feed::-webkit-scrollbar-thumb{background:var(--dim)}
+.thought-entry{margin-bottom:8px;padding:6px 8px;border-left:2px solid var(--dim)}
+.thought-entry.ares{border-left-color:var(--ares)}
+.thought-entry.athena{border-left-color:var(--athena)}
+.thought-entry.apollo{border-left-color:var(--apollo)}
+.thought-entry.argus{border-left-color:var(--argus)}
+.thought-entry.aegis{border-left-color:var(--aegis)}
+.thought-entry.error{border-left-color:var(--red);background:#1a000a}
+.thought-entry.milestone{border-left-color:var(--amber);background:#1a1200}
+.thought-entry.decision{border-left-color:var(--blue);background:#001a26}
+.thought-agent{font-size:9px;letter-spacing:2px;margin-bottom:2px;font-family:'Orbitron',sans-serif}
+.thought-entry.ares .thought-agent{color:var(--ares)}
+.thought-entry.athena .thought-agent{color:var(--athena)}
+.thought-entry.apollo .thought-agent{color:var(--apollo)}
+.thought-entry.argus .thought-agent{color:var(--argus)}
+.thought-entry.aegis .thought-agent{color:var(--aegis)}
+.thought-time{color:var(--dim);font-size:9px}
+.thought-text{color:var(--text)}
+
+/* DIRECTIVE BOX */
+.directive-box{display:flex;gap:0;margin-top:16px}
+.directive-box input{flex:1;background:var(--bg3);border:1px solid var(--dim);border-right:none;color:var(--text);padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none}
+.directive-box input:focus{border-color:var(--blue)}
+.directive-box input::placeholder{color:var(--dim)}
+.directive-box button{background:var(--blue);color:#000;border:none;padding:12px 24px;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;cursor:pointer;white-space:nowrap}
+.directive-box button:hover{background:#00b8d9}
+
+/* APPROVAL QUEUE */
+.approval-item{background:var(--bg2);border:1px solid var(--dim);padding:20px;margin-bottom:16px}
+.approval-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.approval-agent{font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;color:var(--amber)}
+.approval-tier{font-size:9px;padding:3px 8px;border:1px solid var(--amber);color:var(--amber)}
+.approval-type{font-size:13px;color:var(--text);margin-bottom:8px;font-family:'Orbitron',sans-serif}
+.approval-detail{background:var(--bg);padding:12px;font-size:11px;color:var(--dim);margin-bottom:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto}
+.approval-assessment{font-size:11px;color:var(--text);margin-bottom:16px;padding:8px;border-left:2px solid var(--amber)}
+.approval-actions{display:flex;gap:12px}
+.btn-approve{background:var(--green);color:#000;border:none;padding:10px 24px;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;cursor:pointer}
+.btn-deny{background:none;border:1px solid var(--red);color:var(--red);padding:10px 24px;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;cursor:pointer}
+.btn-approve:hover{background:#00cc66}
+.btn-deny:hover{background:var(--red);color:#fff}
+.approval-time{font-size:9px;color:var(--dim);margin-top:12px}
+.empty-state{text-align:center;color:var(--dim);padding:48px;font-size:12px;letter-spacing:2px}
+
+/* REVENUE PAGE */
+.rev-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+@media(max-width:700px){.rev-grid{grid-template-columns:repeat(2,1fr)}}
+.rev-card{background:var(--bg2);border:1px solid var(--dim);padding:20px}
+.rev-card-label{font-size:9px;letter-spacing:2px;color:var(--dim);margin-bottom:8px;font-family:'Orbitron',sans-serif}
+.rev-card-amount{font-size:24px;color:var(--green);font-family:'Orbitron',sans-serif}
+.pipeline-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:700px){.pipeline-grid{grid-template-columns:1fr}}
+.pipeline-card{background:var(--bg2);border:1px solid var(--dim);padding:20px}
+.pipeline-name{font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;margin-bottom:8px;color:var(--text)}
+.health-badge{display:inline-block;font-size:9px;padding:3px 10px;letter-spacing:1px;font-family:'Orbitron',sans-serif;margin-bottom:12px}
+.health-green{background:#00261a;color:var(--green);border:1px solid var(--green)}
+.health-amber{background:#261a00;color:var(--amber);border:1px solid var(--amber)}
+.health-red{background:#260010;color:var(--red);border:1px solid var(--red)}
+.pipeline-rev{font-size:20px;color:var(--green);font-family:'Orbitron',sans-serif}
+.pipeline-meta{font-size:10px;color:var(--dim);margin-top:6px}
+
+/* REPORTS PAGE */
+.report-list{margin-bottom:16px;display:flex;flex-direction:column;gap:8px}
+.report-item{background:var(--bg2);border:1px solid var(--dim);padding:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:border-color .2s}
+.report-item:hover{border-color:var(--blue)}
+.report-date{font-family:'Orbitron',sans-serif;font-size:12px;color:var(--blue)}
+.report-meta{font-size:10px;color:var(--dim)}
+.report-content{background:var(--bg2);border:1px solid var(--dim);padding:24px;font-size:12px;line-height:1.8}
+.report-content h1,.report-content h2,.report-content h3{font-family:'Orbitron',sans-serif;color:var(--blue);margin:16px 0 8px;font-size:14px;letter-spacing:2px}
+.report-content p{margin-bottom:8px;color:var(--text)}
+.report-content strong{color:var(--amber)}
+.report-content hr{border:none;border-top:1px solid var(--dim);margin:16px 0}
+.report-content ul{padding-left:16px;margin-bottom:8px}
+.report-content li{margin-bottom:4px;color:var(--text)}
+.back-btn{background:none;border:1px solid var(--dim);color:var(--dim);padding:8px 16px;font-size:10px;cursor:pointer;margin-bottom:16px;font-family:'JetBrains Mono',monospace}
+.back-btn:hover{border-color:var(--text);color:var(--text)}
+
+/* OPPORTUNITIES PAGE */
+.opp-item{background:var(--bg2);border:1px solid var(--dim);padding:16px;margin-bottom:12px}
+.opp-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.opp-title{font-family:'Orbitron',sans-serif;font-size:12px;color:var(--text)}
+.opp-priority{font-size:9px;padding:3px 8px;font-family:'Orbitron',sans-serif;letter-spacing:1px}
+.priority-high{background:#0d2600;color:var(--green);border:1px solid var(--green)}
+.priority-medium{background:#261a00;color:var(--amber);border:1px solid var(--amber)}
+.priority-low{background:var(--bg);color:var(--dim);border:1px solid var(--dim)}
+.opp-type{font-size:9px;color:var(--blue);letter-spacing:1px;margin-bottom:8px}
+.opp-detail{font-size:11px;color:var(--dim);line-height:1.6}
+.opp-confidence{font-size:10px;color:var(--dim);margin-top:8px}
+.conf-bar{height:3px;background:var(--bg);margin-top:4px;position:relative}
+.conf-fill{height:100%;background:var(--blue);transition:width .3s}
+.opp-actioned{opacity:.4;filter:grayscale(.8)}
+
+/* SETTINGS */
+.settings-group{background:var(--bg2);border:1px solid var(--dim);padding:24px;margin-bottom:16px}
+.settings-group h3{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;color:var(--blue);margin-bottom:16px}
+.settings-row{margin-bottom:16px}
+.settings-row label{display:block;font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:6px}
+.settings-row input,.settings-row textarea{width:100%;background:var(--bg3);border:1px solid var(--dim);color:var(--text);padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none}
+.settings-row input:focus,.settings-row textarea:focus{border-color:var(--blue)}
+.settings-row textarea{height:80px;resize:vertical}
+.btn-save{background:var(--blue);color:#000;border:none;padding:10px 24px;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;cursor:pointer}
+.btn-save:hover{background:#00b8d9}
+.save-confirm{color:var(--green);font-size:10px;margin-left:12px;display:none}
+
+/* GRID LINES BG */
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background-image:linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+#app,#login-screen{position:relative;z-index:1}
+</style>
+</head>
+<body>
+
+<!-- ====== LOGIN ====== -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>ARK</h1>
+    <p>MASTER CONTROL ACCESS</p>
+    <input type="email" id="login-email" placeholder="operator@email.com" autocomplete="email">
+    <input type="password" id="login-password" placeholder="••••••••••" autocomplete="current-password">
+    <button onclick="doLogin()">INITIALIZE SESSION</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ====== APP ====== -->
+<div id="app">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div>
+      <div class="logo">ARK</div>
+      <span style="font-size:9px;color:var(--dim);letter-spacing:2px;font-family:'Orbitron',sans-serif">COMMAND CENTER</span>
+    </div>
+    <div class="revenue-ticker">
+      <div class="rev-item"><div class="rev-label">TODAY</div><div class="rev-amount" id="tick-today">$0.00</div></div>
+      <div class="rev-item"><div class="rev-label">WEEK</div><div class="rev-amount" id="tick-week">$0.00</div></div>
+      <div class="rev-item"><div class="rev-label">MONTH</div><div class="rev-amount" id="tick-month">$0.00</div></div>
+      <div class="rev-item"><div class="rev-label">ALL TIME</div><div class="rev-amount" id="tick-alltime">$0.00</div></div>
+    </div>
+    <div class="topbar-right">
+      <div class="approval-badge" id="approval-badge" onclick="switchTab('approvals')">⚠ <span id="approval-count">0</span> PENDING</div>
+      <button id="logout-btn" onclick="doLogout()">LOGOUT</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dashboard')" id="tab-dashboard">DASHBOARD</div>
+    <div class="tab" onclick="switchTab('approvals')" id="tab-approvals">APPROVALS</div>
+    <div class="tab" onclick="switchTab('opportunities')" id="tab-opportunities">INTELLIGENCE</div>
+    <div class="tab" onclick="switchTab('revenue')" id="tab-revenue">REVENUE</div>
+    <div class="tab" onclick="switchTab('reports')" id="tab-reports">REPORTS</div>
+    <div class="tab" onclick="switchTab('settings')" id="tab-settings">SETTINGS</div>
+  </div>
+
+  <!-- ====== DASHBOARD PAGE ====== -->
+  <div class="page active" id="page-dashboard">
+    <div class="agent-grid" id="agent-grid"></div>
+    <div class="section-title">LIVE THOUGHT FEED</div>
+    <div class="thought-feed" id="thought-feed">
+      <div class="thought-entry"><div class="thought-text" style="color:var(--dim)">Waiting for agent activity...</div></div>
+    </div>
+    <div class="directive-box" style="margin-top:16px">
+      <input type="text" id="directive-input" placeholder="Issue directive to ARES..." maxlength="500">
+      <button onclick="sendDirective()">TRANSMIT</button>
+    </div>
+  </div>
+
+  <!-- ====== APPROVALS PAGE ====== -->
+  <div class="page" id="page-approvals">
+    <div class="section-title">APPROVAL QUEUE</div>
+    <div id="approvals-list"><div class="empty-state">NO PENDING APPROVALS</div></div>
+  </div>
+
+  <!-- ====== INTELLIGENCE PAGE ====== -->
+  <div class="page" id="page-opportunities">
+    <div class="section-title">ATHENA INTELLIGENCE REPORTS</div>
+    <div id="opportunities-list"><div class="empty-state">NO REPORTS YET — ATHENA WILL FILE ON NEXT SCAN</div></div>
+  </div>
+
+  <!-- ====== REVENUE PAGE ====== -->
+  <div class="page" id="page-revenue">
+    <div class="section-title">REVENUE OVERVIEW</div>
+    <div class="rev-grid">
+      <div class="rev-card"><div class="rev-card-label">TODAY</div><div class="rev-card-amount" id="rev-today">$0.00</div></div>
+      <div class="rev-card"><div class="rev-card-label">THIS WEEK</div><div class="rev-card-amount" id="rev-week">$0.00</div></div>
+      <div class="rev-card"><div class="rev-card-label">THIS MONTH</div><div class="rev-card-amount" id="rev-month">$0.00</div></div>
+      <div class="rev-card"><div class="rev-card-label">ALL TIME</div><div class="rev-card-amount" id="rev-alltime">$0.00</div></div>
+    </div>
+    <div class="section-title">PIPELINE HEALTH</div>
+    <div class="pipeline-grid" id="pipeline-grid">
+      <div class="pipeline-card">
+        <div class="pipeline-name">DIGITAL PRODUCTS</div>
+        <div class="health-badge health-amber" id="health-digital">BUILDING</div>
+        <div class="pipeline-rev" id="rev-digital">$0.00</div>
+        <div class="pipeline-meta" id="meta-digital">Gumroad — 0 sales</div>
+      </div>
+      <div class="pipeline-card">
+        <div class="pipeline-name">SEO BLOG</div>
+        <div class="health-badge health-amber" id="health-seo">BUILDING</div>
+        <div class="pipeline-rev" id="rev-seo">$0.00</div>
+        <div class="pipeline-meta" id="meta-seo">Affiliate — indexing</div>
+      </div>
+      <div class="pipeline-card">
+        <div class="pipeline-name">NEWSLETTER</div>
+        <div class="health-badge health-amber" id="health-newsletter">BUILDING</div>
+        <div class="pipeline-rev" id="rev-newsletter">$0.00</div>
+        <div class="pipeline-meta" id="meta-newsletter">Beehiiv — growing</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== REPORTS PAGE ====== -->
+  <div class="page" id="page-reports">
+    <div class="section-title">END-OF-DAY REPORTS</div>
+    <div id="reports-list"><div class="empty-state">NO REPORTS YET — ARGUS FILES NIGHTLY AT 23:00 SGT</div></div>
+    <div id="report-viewer" style="display:none">
+      <button class="back-btn" onclick="showReportList()">← BACK TO REPORTS</button>
+      <div class="report-content" id="report-content"></div>
+    </div>
+  </div>
+
+  <!-- ====== SETTINGS PAGE ====== -->
+  <div class="page" id="page-settings">
+    <div class="settings-group">
+      <h3>NICHE PREFERENCES</h3>
+      <div class="settings-row">
+        <label>NICHES (JSON array — Athena uses these)</label>
+        <textarea id="setting-niches" placeholder='["AI productivity tools", "no-code automation"]'></textarea>
+      </div>
+      <div class="settings-row">
+        <label>CONTENT TONE</label>
+        <input type="text" id="setting-tone" placeholder="informative, direct, slightly technical, no fluff">
+      </div>
+      <button class="btn-save" onclick="saveSettings()">SAVE SETTINGS</button>
+      <span class="save-confirm" id="save-confirm">✓ SAVED</span>
+    </div>
+    <div class="settings-group">
+      <h3>SYSTEM STATUS</h3>
+      <div style="font-size:11px;color:var(--dim);line-height:2">
+        <div>Dashboard: <span style="color:var(--green)">ONLINE</span></div>
+        <div>Database: <span style="color:var(--green)" id="db-status">CONNECTED</span></div>
+        <div>Realtime: <span style="color:var(--green)" id="rt-status">ACTIVE</span></div>
+        <div style="margin-top:12px;color:var(--dim);font-size:10px">Agent schedules run via GitHub Actions — check Actions tab in your repo for logs.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== CONFIG — REPLACE THESE ======
+const SUPABASE_URL = 'tafyjhogqkqvloadrzum';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhZnlqaG9ncWtxdmxvYWRyenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTk3MjAsImV4cCI6MjA5MzI5NTcyMH0.bM7WCI5Iuf1grIrj2ykwONO-H-yJiX0-GAKbnEWo4qQ';
+// =====================================
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const AGENT_META = {
+  ares:   { label:'COMMANDER', emoji:'⚔️', color:'var(--ares)' },
+  athena: { label:'INTELLIGENCE', emoji:'🦉', color:'var(--athena)' },
+  apollo: { label:'CREATION', emoji:'🔥', color:'var(--apollo)' },
+  argus:  { label:'ANALYTICS', emoji:'👁️', color:'var(--argus)' },
+  aegis:  { label:'SECURITY', emoji:'🛡️', color:'var(--aegis)' },
+};
+
+// ====== AUTH ======
+async function doLogin() {
+  const email = document.getElementById('login-email').value;
+  const pass  = document.getElementById('login-password').value;
+  const err   = document.getElementById('login-error');
+  err.textContent = '';
+  const { error } = await db.auth.signInWithPassword({ email, password: pass });
+  if (error) { err.textContent = error.message; return; }
+  showApp();
+}
+
+async function doLogout() {
+  await db.auth.signOut();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+async function checkSession() {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) showApp();
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  init();
+}
+
+// ====== TABS ======
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'approvals') loadApprovals();
+  if (name === 'opportunities') loadOpportunities();
+  if (name === 'revenue') loadRevenue();
+  if (name === 'reports') loadReports();
+  if (name === 'settings') loadSettings();
+}
+
+// ====== AGENT GRID ======
+function renderAgentGrid(agents) {
+  const grid = document.getElementById('agent-grid');
+  grid.innerHTML = '';
+  const order = ['ares','athena','apollo','argus','aegis'];
+  order.forEach(id => {
+    const agent = agents.find(a => a.id === id) || { id, name: id.toUpperCase(), status: 'idle', current_task: '', last_active: null };
+    const meta = AGENT_META[id] || {};
+    const lastActive = agent.last_active ? timeAgo(agent.last_active) : 'never';
+    grid.innerHTML += `
+      <div class="agent-card ${id}">
+        <div class="agent-avatar">${meta.emoji||'🤖'}</div>
+        <div class="agent-name">${agent.name}</div>
+        <div class="agent-role">${meta.label||''}</div>
+        <div class="agent-status status-${agent.status}">${agent.status.toUpperCase().replace('_',' ')}</div>
+        <div class="agent-task">${agent.current_task || 'Standing by'}</div>
+        <div class="agent-last">Last active: ${lastActive}</div>
+      </div>`;
+  });
+}
+
+// ====== THOUGHT FEED ======
+let thoughtsLoaded = false;
+function renderThought(row) {
+  const feed = document.getElementById('thought-feed');
+  const time = new Date(row.created_at).toLocaleTimeString('en-SG', { hour12:false });
+  const entry = document.createElement('div');
+  entry.className = `thought-entry ${row.agent_id} ${row.thought_type}`;
+  entry.innerHTML = `
+    <div class="thought-agent">${(row.agent_id||'').toUpperCase()} <span class="thought-time">${time}</span></div>
+    <div class="thought-text">${escHtml(row.thought)}</div>`;
+  if (!thoughtsLoaded) {
+    const placeholder = feed.querySelector('.thought-text');
+    if (placeholder && placeholder.textContent.includes('Waiting')) feed.innerHTML = '';
+    thoughtsLoaded = true;
+  }
+  feed.prepend(entry);
+  while (feed.children.length > 60) feed.removeChild(feed.lastChild);
+}
+
+async function loadThoughts() {
+  const { data } = await db.from('thought_logs').select('*').order('created_at', { ascending: false }).limit(50);
+  if (!data || data.length === 0) return;
+  document.getElementById('thought-feed').innerHTML = '';
+  thoughtsLoaded = true;
+  [...data].reverse().forEach(renderThought);
+}
+
+// ====== APPROVALS ======
+async function loadApprovals() {
+  const { data } = await db.from('approval_queue').select('*').eq('status','pending').order('created_at', { ascending: false });
+  const list = document.getElementById('approvals-list');
+  const badge = document.getElementById('approval-badge');
+  const count = document.getElementById('approval-count');
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="empty-state">NO PENDING APPROVALS</div>';
+    badge.classList.remove('visible');
+    return;
+  }
+  badge.classList.add('visible');
+  count.textContent = data.length;
+  list.innerHTML = data.map(item => {
+    const detail = JSON.stringify(item.action_detail, null, 2);
+    const expires = item.expires_at ? new Date(item.expires_at).toLocaleString('en-SG') : '';
+    return `
+    <div class="approval-item" id="appr-${item.id}">
+      <div class="approval-header">
+        <div>
+          <div class="approval-agent">REQUEST FROM ${(item.requesting_agent||'').toUpperCase()}</div>
+          <div class="approval-type">${item.action_type.replace(/_/g,' ').toUpperCase()}</div>
+        </div>
+        <div class="approval-tier">TIER ${item.risk_tier}</div>
+      </div>
+      <div class="approval-detail">${escHtml(detail)}</div>
+      ${item.aegis_assessment ? `<div class="approval-assessment">${escHtml(item.aegis_assessment)}</div>` : ''}
+      <div class="approval-actions">
+        <button class="btn-approve" onclick="resolveApproval('${item.id}','approved')">APPROVE</button>
+        <button class="btn-deny" onclick="resolveApproval('${item.id}','denied')">DENY</button>
+      </div>
+      <div class="approval-time">Submitted: ${new Date(item.created_at).toLocaleString('en-SG')} | Expires: ${expires}</div>
+    </div>`;
+  }).join('');
+}
+
+async function resolveApproval(id, decision) {
+  const { error } = await db.from('approval_queue').update({
+    status: decision,
+    resolved_at: new Date().toISOString()
+  }).eq('id', id);
+  if (!error) {
+    if (decision === 'approved') {
+      // Also update apollo_output status if linked
+      const { data } = await db.from('approval_queue').select('action_detail').eq('id', id).single();
+      if (data?.action_detail?.output_id) {
+        await db.from('apollo_outputs').update({ status: 'approved', approved_at: new Date().toISOString() })
+          .eq('id', data.action_detail.output_id);
+      }
+    }
+    document.getElementById('appr-' + id)?.remove();
+    loadApprovals();
+  }
+}
+
+// ====== OPPORTUNITIES ======
+async function loadOpportunities() {
+  const { data } = await db.from('athena_reports').select('*').order('created_at', { ascending: false }).limit(50);
+  const list = document.getElementById('opportunities-list');
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="empty-state">NO REPORTS YET — ATHENA WILL FILE ON NEXT SCAN</div>';
+    return;
+  }
+  list.innerHTML = data.map(opp => {
+    const detail = opp.detail || {};
+    const conf = Math.round((opp.confidence_score || 0.5) * 100);
+    return `
+    <div class="opp-item ${opp.actioned ? 'opp-actioned' : ''}">
+      <div class="opp-header">
+        <div class="opp-title">${escHtml(opp.title)}</div>
+        <div class="opp-priority priority-${opp.priority||'medium'}">${(opp.priority||'medium').toUpperCase()}</div>
+      </div>
+      <div class="opp-type">${(opp.report_type||'').toUpperCase().replace('_',' ')} ${opp.actioned ? '· ACTIONED' : ''}</div>
+      <div class="opp-detail">${escHtml(detail.detail || detail.recommended_action || JSON.stringify(detail).slice(0,200))}</div>
+      <div class="opp-confidence">Confidence: ${conf}%
+        <div class="conf-bar"><div class="conf-fill" style="width:${conf}%"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ====== REVENUE ======
+async function loadRevenue() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const weekAgo = new Date(now - 7*86400000).toISOString();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  const { data: all } = await db.from('revenue_events').select('amount,pipeline,created_at');
+  if (!data && !all) return;
+  const rows = all || [];
+
+  const sum = rows => rows.reduce((a, r) => a + parseFloat(r.amount || 0), 0);
+  const today = sum(rows.filter(r => r.created_at >= todayStr));
+  const week  = sum(rows.filter(r => r.created_at >= weekAgo));
+  const month = sum(rows.filter(r => r.created_at >= monthStart));
+  const total = sum(rows);
+
+  const fmt = n => '$' + n.toFixed(2);
+  ['today','week','month','alltime'].forEach((k, i) => {
+    const vals = [today, week, month, total];
+    document.getElementById('rev-'+k).textContent = fmt(vals[i]);
+    document.getElementById('tick-'+k).textContent = fmt(vals[i]);
+  });
+
+  ['digital_products','seo_blog','newsletter'].forEach(p => {
+    const pRows = rows.filter(r => r.pipeline === p);
+    const pRev = sum(pRows);
+    const key = p === 'digital_products' ? 'digital' : p === 'seo_blog' ? 'seo' : 'newsletter';
+    document.getElementById('rev-'+key).textContent = fmt(pRev);
+    const health = pRev > 100 ? 'green' : pRev > 0 ? 'amber' : 'amber';
+    const hEl = document.getElementById('health-'+key);
+    hEl.className = 'health-badge health-'+health;
+    hEl.textContent = pRev > 100 ? 'GREEN' : pRev > 0 ? 'GROWING' : 'BUILDING';
+    document.getElementById('meta-'+key).textContent = `${pRows.length} event${pRows.length !== 1 ? 's' : ''} this month`;
+  });
+}
+
+// ====== REPORTS ======
+async function loadReports() {
+  const { data } = await db.from('eod_reports').select('*').order('report_date', { ascending: false }).limit(30);
+  const list = document.getElementById('reports-list');
+  document.getElementById('report-viewer').style.display = 'none';
+  list.style.display = 'block';
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="empty-state">NO REPORTS YET — ARGUS FILES NIGHTLY AT 23:00 SGT</div>';
+    return;
+  }
+  list.innerHTML = `<div class="report-list">` + data.map(r => `
+    <div class="report-item" onclick="showReport(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+      <div class="report-date">${r.report_date}</div>
+      <div class="report-meta">Revenue: $${parseFloat(r.revenue_today||0).toFixed(2)} today · $${parseFloat(r.revenue_month||0).toFixed(2)} month</div>
+    </div>`).join('') + '</div>';
+}
+
+function showReport(r) {
+  document.getElementById('reports-list').style.display = 'none';
+  document.getElementById('report-viewer').style.display = 'block';
+  document.getElementById('report-content').innerHTML = marked.parse(r.content || '');
+}
+function showReportList() {
+  document.getElementById('report-viewer').style.display = 'none';
+  document.getElementById('reports-list').style.display = 'block';
+}
+
+// ====== SETTINGS ======
+async function loadSettings() {
+  const { data } = await db.from('operator_settings').select('key,value');
+  if (!data) return;
+  const map = Object.fromEntries(data.map(r => [r.key, r.value]));
+  if (map.niches) document.getElementById('setting-niches').value = JSON.stringify(map.niches, null, 2);
+  if (map.tone) document.getElementById('setting-tone').value = String(map.tone).replace(/^"|"$/g,'');
+}
+
+async function saveSettings() {
+  const niches = document.getElementById('setting-niches').value.trim();
+  const tone   = document.getElementById('setting-tone').value.trim();
+  try {
+    const parsed = JSON.parse(niches);
+    await db.from('operator_settings').upsert({ key: 'niches', value: parsed, updated_at: new Date().toISOString() });
+    await db.from('operator_settings').upsert({ key: 'tone', value: tone, updated_at: new Date().toISOString() });
+    const c = document.getElementById('save-confirm');
+    c.style.display = 'inline';
+    setTimeout(() => c.style.display = 'none', 2000);
+  } catch(e) {
+    alert('Invalid JSON in niches field.');
+  }
+}
+
+// ====== DIRECTIVE ======
+async function sendDirective() {
+  const input = document.getElementById('directive-input');
+  const content = input.value.trim();
+  if (!content) return;
+  await db.from('operator_directives').insert({ content, addressed_to: 'ares', status: 'pending' });
+  input.value = '';
+  const feed = document.getElementById('thought-feed');
+  const entry = document.createElement('div');
+  entry.className = 'thought-entry decision';
+  entry.innerHTML = `<div class="thought-agent" style="color:var(--green)">MASTER CONTROL</div><div class="thought-text">Directive transmitted: "${escHtml(content)}"</div>`;
+  feed.prepend(entry);
+}
+
+// ====== REALTIME ======
+function setupRealtime() {
+  db.channel('ark-live')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'thought_logs' }, p => renderThought(p.new))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'agents' }, () => loadAgents())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'approval_queue' }, () => {
+      loadApprovalBadge();
+      if (document.getElementById('page-approvals').classList.contains('active')) loadApprovals();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'revenue_events' }, () => loadRevenueTicker())
+    .subscribe(status => {
+      document.getElementById('rt-status').textContent = status === 'SUBSCRIBED' ? 'ACTIVE' : status;
+    });
+}
+
+async function loadAgents() {
+  const { data } = await db.from('agents').select('*');
+  if (data) renderAgentGrid(data);
+}
+
+async function loadApprovalBadge() {
+  const { data } = await db.from('approval_queue').select('id').eq('status','pending');
+  const badge = document.getElementById('approval-badge');
+  const count = document.getElementById('approval-count');
+  if (data && data.length > 0) {
+    badge.classList.add('visible');
+    count.textContent = data.length;
+  } else {
+    badge.classList.remove('visible');
+  }
+}
+
+async function loadRevenueTicker() {
+  const { data } = await db.from('revenue_events').select('amount');
+  if (!data) return;
+  const total = data.reduce((a, r) => a + parseFloat(r.amount||0), 0);
+  document.getElementById('tick-alltime').textContent = '$' + total.toFixed(2);
+}
+
+// ====== INIT ======
+async function init() {
+  await loadAgents();
+  await loadThoughts();
+  await loadApprovalBadge();
+  await loadRevenueTicker();
+  setupRealtime();
+}
+
+// ====== UTILS ======
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+// Directive on Enter key
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('directive-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendDirective();
+  });
+  checkSession();
+});
+</script>
+</body>
+</html>
